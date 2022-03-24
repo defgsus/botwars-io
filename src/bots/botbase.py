@@ -72,6 +72,16 @@ class Bot:
 
 
 class GameBase:
+    """
+    Wrapper for one round of a bot match.
+
+    will be inititalized with the game state and
+    provides usefull data and methods for managing
+    the round.
+
+    The friendly bots must add their actions via .add_action() in the step() method.
+
+    """
     WIDTH = 16
     HEIGHT = 16
 
@@ -94,9 +104,15 @@ class GameBase:
             b.index = i
 
         self.rand = random.SystemRandom()
-        self.actions = []
+        self.actions: List[Action] = []
         self.attacked_fields = []
         self.moved_fields = []
+        self._enemy_distance_map = None
+
+        if len(input_args) > 2:
+            self.set_user_data(input_args[2])
+        else:
+            self.set_user_data("")
 
     def log(self, *args):
         print(*args, file=sys.stderr)
@@ -104,8 +120,26 @@ class GameBase:
     def step(self):
         raise NotImplementedError
 
+    def get_user_data(self) -> str:
+        """
+        Override to export user-data after the round
+        """
+        return ""
+
+    def set_user_data(self, data: str):
+        """
+        Override to handle user-data before the round.
+
+        This method will be called with "" when no user-data is present.
+        """
+        pass
+
     def output(self):
-        return ",".join(str(a) for a in self.actions)
+        output = ",".join(str(a) for a in self.actions)
+        user_data = self.get_user_data()
+        if user_data:
+            output = f"{output}#{user_data}"
+        return output
 
     def add_action(self, a: Action):
         self.actions.append(a)
@@ -146,6 +180,21 @@ class GameBase:
         for b in self.bots:
             if b.x == x and b.y == y:
                 return b
+
+    def enemy_distance_map(self) -> List[List[float]]:
+        if not self._enemy_distance_map:
+            self._enemy_distance_map = []
+            for y in range(self.WIDTH):
+                row = []
+                for x in range(self.HEIGHT):
+                    if not self.enemies:
+                        row.append(0.)
+                    else:
+                        row.append(
+                            min([distance(x, y, e.x, e.y) for e in self.enemies])
+                        )
+                self._enemy_distance_map.append(row)
+        return self._enemy_distance_map
 
     def astar_search(
             self,
@@ -229,9 +278,7 @@ class GameBase:
                 if pos not in SPAWNS:
                     m = self.get_map(*pos)
                     if not m or m in ignore:
-                        friends = sum(1 for b in self.friends if b.distance(pos) <= 5)
-                        cost = 1 - friends / len(self.friends)
-                        yield pos, cost
+                        yield pos, 1
 
     def test_explode(self, bot: Bot) -> Tuple[int, int]:
         energy_gain = -bot.energy

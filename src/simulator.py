@@ -12,13 +12,18 @@ class Bot:
         self.y = y
         self.energy = 100
         self.defend = False
+        self.color = ""
 
     def __repr__(self):
         return f"{chr(ord('a') + self.player)}{self.x}:{self.y}"
 
 
 class Simulator:
+    """
+    Simulates the matches at botwars.io
 
+    Create a new instance for each match!
+    """
     ACTIONS = {
         "A": "attack",
         "D": "defend",
@@ -73,12 +78,12 @@ class Simulator:
         self.enemy_attacks = [0] * len(self.bot_files)
         self.friendly_attacks = [0] * len(self.bot_files)
         self.kills = [0] * len(self.bot_files)
+        self.user_data = [""] * len(self.bot_files)
 
         self.log_lines = []
         self.init_map()
 
     def init_map(self):
-        self.frame = 0
         self.map = [
             [None] * self.width
             for _ in range(self.height)
@@ -111,13 +116,27 @@ class Simulator:
             self.frame += 1
             return
 
+        # --- show map and process bots ---
+
         bot_outputs = []
         for i, (bot_file, bot_module) in enumerate(zip(self.bot_files, self.bot_modules)):
+            input = self.game_state(i)
             if bot_module:
-                output = self.process_module(bot_module, self.game_state(i))
+                output = self.process_module(bot_module, input).strip()
             else:
-                output = self.process_file(bot_file, self.game_state(i))
-            bot_outputs.append(output.strip())
+                output = self.process_file(bot_file, input).strip()
+
+            output_args = output.split("#")
+            bot_outputs.append(output_args[0])
+            #print(f"INPUT player {i} : {input}")
+            #print(f"OUTPUT player {i}: {output}")
+
+            if len(output_args) > 1:
+                self.user_data[i] = output_args[1]
+            else:
+                self.user_data[i] = ""
+
+        # --- split action strings ---
 
         bot_actions = []
         for i, bot_output in enumerate(bot_outputs):
@@ -133,11 +152,15 @@ class Simulator:
                             args[2:],
                         ))
 
+        # --- apply defend actions ---
+
         for other in self.bots:
             other.defend = False
         for bot, command, args in bot_actions:
             if command == "defend":
                 bot.defend = True
+
+        # --- apply all other actions ---
 
         for bot, command, args in bot_actions:
             if command == "move":
@@ -156,7 +179,9 @@ class Simulator:
                     if other.defend:
                         energy //= 2
                     other.energy -= energy
-                    self.log_lines.append(f"{bot} attacked {other}")
+                    self.log_lines.append(
+                        f"{bot.color}{bot} attacked {other.color}{other}{self.COLOR_OFF}"
+                    )
                     if is_friendly:
                         self.friendly_attacks[bot.player] += 1
                     else:
@@ -218,7 +243,9 @@ class Simulator:
             f"{self.frame},100,{player+1}",
             ",".join(friends + enemies),
         ]
-        # TODO: user_data
+        if self.user_data[player]:
+            elements.append(self.user_data[player])
+
         return "#".join(elements)
 
     def get_map(self, x: int, y: int) -> Union[None, bool, Bot]:
@@ -244,8 +271,10 @@ class Simulator:
                 self.bots.pop(i)
                 break
 
-        self.bots.append(Bot(player_index, x, y))
-        return self.bots[-1]
+        bot = Bot(player_index, x, y)
+        bot.color = self.COLOR1 if player_index == 0 else self.COLOR2
+        self.bots.append(bot)
+        return bot
 
     def num_bots(self) -> List[int]:
         num = [0] * len(self.bot_files)
@@ -279,7 +308,7 @@ class Simulator:
     def process_module(self, module, input: str) -> str:
         game = module.Game(input)
         game.step()
-        return ",".join(map(str, game.actions))
+        return game.output()
 
     def print(self, file=None):
         for y in range(self.height):

@@ -9,7 +9,17 @@ class Game(GameBase):
 
     def step(self):
         for bot in self.friends:
-            action = bot.action("M", self.rand.choice(list(DIRECTIONS)))
+
+            action = None
+
+            for e in self.enemies:
+                if bot.distance(e) < 1.1:
+                    action = bot.action("A", bot.direction(e))
+                    break
+
+            if not action:
+                action = bot.action("M", self.rand.choice(list(DIRECTIONS)))
+
             self.add_action(action)
 
 
