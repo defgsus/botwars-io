@@ -44,7 +44,7 @@ class Simulator:
 
     COLOR1 = "\033[93m"
     COLOR2 = "\033[96m"
-    COLOR3 = "\033[91m"
+    COLOR_RED = "\033[91m"
     COLOR_OFF = "\033[m"
 
     def __init__(
@@ -75,9 +75,14 @@ class Simulator:
             [(11, 4), (11, 11)],
         ]
         self.frame = 0
-        self.enemy_attacks = [0] * len(self.bot_files)
-        self.friendly_attacks = [0] * len(self.bot_files)
-        self.kills = [0] * len(self.bot_files)
+        self.stats = {
+            key: [0] * len(self.bot_files)
+            for key in (
+                "defends", "useless_defends", "moves", "failed_moves",
+                "enemy_attacks", "friendly_attacks",
+                "enemy_kills", "friendly_kills",
+            )
+        }
         self.user_data = [""] * len(self.bot_files)
 
         self.log_lines = []
@@ -160,16 +165,27 @@ class Simulator:
             if command == "defend":
                 bot.defend = True
 
-        # --- apply all other actions ---
+        # --- apply move actions ---
 
+        move_targets = {}
         for bot, command, args in bot_actions:
             if command == "move":
                 dx, dy = self.DIRECTIONS[args[0]]
-                x, y = bot.x + dx, bot.y + dy
-                if not self.get_map(x, y):
-                    bot.x, bot.y = x, y
+                pos = bot.x + dx, bot.y + dy
+                move_targets.setdefault(pos, []).append(bot)
 
-            elif command == "attack":
+        for pos, bots in move_targets.items():
+            if not self.get_map(*pos) and len(bots) == 1:
+                bots[0].x, bots[0].y = pos
+                self.stats["moves"][bots[0].player] += 1
+            else:
+                for b in bots:
+                    self.stats["failed_moves"][b.player] += 1
+
+        # --- apply attack/explode actions ---
+
+        for bot, command, args in bot_actions:
+            if command == "attack":
                 dx, dy = self.DIRECTIONS[args[0]]
                 x, y = bot.x + dx, bot.y + dy
                 other = self.get_bot(x, y)
@@ -183,11 +199,13 @@ class Simulator:
                         f"{bot.color}{bot} attacked {other.color}{other}{self.COLOR_OFF}"
                     )
                     if is_friendly:
-                        self.friendly_attacks[bot.player] += 1
+                        self.stats["friendly_attacks"][bot.player] += 1
+                        if other.energy <= 0:
+                            self.stats["friendly_kills"][bot.player] += 1
                     else:
-                        self.enemy_attacks[bot.player] += 1
-                    if other.energy <= 0:
-                        self.kills[bot.player] += 1
+                        self.stats["enemy_attacks"][bot.player] += 1
+                        if other.energy <= 0:
+                            self.stats["enemy_kills"][bot.player] += 1
 
             elif command == "explode":
                 for y in range(-1, 2):
@@ -197,9 +215,12 @@ class Simulator:
                             if other:
                                 other.energy -= self.EXPLODE_ATTACK
                                 if other.energy <= 0:
-                                    self.kills[bot.player] += 1
+                                    if bot.player != other.player:
+                                        self.stats["enemy_kills"][bot.player] += 1
+                                    else:
+                                        self.stats["friendly_kills"][bot.player] += 1
                 bot.energy = 0
-                self.log_lines.append(f"{self.COLOR3}{bot} exploded{self.COLOR_OFF}")
+                self.log_lines.append(f"{self.COLOR_RED}{bot} exploded{self.COLOR_OFF}")
 
         died_bots = [
             b for b in self.bots
@@ -212,15 +233,15 @@ class Simulator:
             b for b in self.bots
             if b.energy > 0
         ]
-        self.log_lines.append("attacks: " + " ".join(
+        self.log_lines.append("attacks (e/f): " + " ".join(
             f"{e}/{f}"
-            for e, f in zip(self.enemy_attacks, self.friendly_attacks)
+            for e, f in zip(self.stats["enemy_attacks"], self.stats["friendly_attacks"])
         ))
-        self.log_lines.append("kills: " + " ".join(
-            f"{e}"
-            for e in self.kills
+        self.log_lines.append("kills (e/f): " + " ".join(
+            f"{e}/{f}"
+            for e, f in zip(self.stats["enemy_kills"], self.stats["friendly_kills"])
         ))
-        self.log_lines.append("bots: " + " / ".join(str(n) for n in self.num_bots()))
+        self.log_lines.append("bots: " + " ".join(str(n) for n in self.num_bots()))
         self.frame += 1
 
     def game_state(self, player: int) -> str:

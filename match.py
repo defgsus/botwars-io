@@ -29,8 +29,7 @@ def run_games(args) -> dict:
     stats = {
         "wins": [0, 0],
         "draws": [0, 0],
-        "attacks": [0, 0],
-        "self_attacks": [0, 0],
+        "bots_alive": [0, 0],
     }
     A, B = 0, 1
     for i in tqdm(range(count), position=process_index):
@@ -51,12 +50,27 @@ def run_games(args) -> dict:
         else:
             stats["wins"][B] += 1
 
-        for i, v in enumerate(sim.enemy_attacks):
-            stats["attacks"][i] += v
-        for i, v in enumerate(sim.friendly_attacks):
-            stats["self_attacks"][i] += v
+        stats["bots_alive"][A] += n1
+        stats["bots_alive"][B] += n2
+
+        for key, values in sim.stats.items():
+            if key not in stats:
+                stats[key] = [0, 0]
+            for i, v in enumerate([values[A], values[B]]):
+                stats[key][i] += v
 
     return stats
+
+
+def print_stats(stats: dict):
+    for key, values in stats.items():
+        print(
+            f"{key:20}: "
+            + " ".join(
+                f"{Simulator.COLOR1 if i == 0 else Simulator.COLOR2}{v:7}{Simulator.COLOR_OFF}"
+                for i, v in enumerate(values)
+            )
+        )
 
 
 def main(
@@ -86,12 +100,15 @@ def main(
             sim.print()
             time.sleep(.1)
 
+        print_stats(sim.stats)
+
     else:
         processes = [
             (filenames, i, many // 8)
             for i in range(8)
         ]
         results = Pool(len(processes)).map(run_games, processes)
+
         result_sum = dict()
         for r in results:
             for key, values in r.items():
@@ -101,7 +118,7 @@ def main(
                     for i, v in enumerate(values):
                         result_sum[key][i] += v
 
-        print(result_sum)
+        print_stats(result_sum)
 
 
 if __name__ == "__main__":

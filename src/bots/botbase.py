@@ -200,12 +200,17 @@ class GameBase:
             start_node: Tuple[int, int],
             end_node: Tuple[int, int],
             ignore: Optional[Set[Bot]] = None,
+            **kwargs,
     ):
         """
         Get optimal path between start_node and end_node
+
         :param start_node: (int, int)
         :param end_node: (int, int)
         :param ignore: set of Bots to ignore
+
+        Any additional keyword arguments are passed to `adjacent_nodes` method
+
         :return: list of (int, int) or None
         """
         if ignore is None:
@@ -249,7 +254,7 @@ class GameBase:
             # flag as evaluated
             closed_set.add(current_node)
 
-            for neighbor_node, step_cost in self.adjacent_nodes(*current_node, ignore=ignore):
+            for neighbor_node, step_cost in self.adjacent_nodes(*current_node, ignore=ignore, **kwargs):
 
                 if neighbor_node in closed_set:
                     continue
@@ -269,15 +274,14 @@ class GameBase:
 
         return None
 
-    def adjacent_nodes(self, x: int, y: int, ignore: Set[Bot] = ()):
+    def adjacent_nodes(self, x: int, y: int, ignore: Set[Bot] = (), **kwargs):
         for pos in (
                 (x, y+1), (x+1, y), (x, y-1), (x-1, y)
         ):
             if pos not in self.attacked_fields and pos not in self.moved_fields:
-                if pos not in SPAWNS:
-                    m = self.get_map(*pos)
-                    if not m or m in ignore:
-                        yield pos, 1
+                m = self.get_map(*pos)
+                if not m or m in ignore:
+                    yield pos, 1
 
     def test_explode(self, bot: Bot) -> Tuple[int, int]:
         energy_gain = -bot.energy
