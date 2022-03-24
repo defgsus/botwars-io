@@ -102,7 +102,10 @@ class GameBase:
             b.index = i
         for i, b in enumerate(self.enemies):
             b.index = i
-
+        self.pos_to_bot_map = {
+            bot.pos: bot
+            for bot in self.bots
+        }
         self.rand = random.SystemRandom()
         self.actions: List[Action] = []
         self.attacked_fields = []
@@ -172,13 +175,13 @@ class GameBase:
         return bots
 
     def get_map(self, x: int, y: int) -> Optional[Union[bool, Bot]]:
+        b = self.pos_to_bot_map.get((x, y))
+        if b:
+            return b
         if not 1 <= x < self.WIDTH-1 or not 1 <= y < self.HEIGHT-1:
             return True
         if (x == 1 or x == self.WIDTH-2) and (y == 1 or y == self.HEIGHT-2):
             return True
-        for b in self.bots:
-            if b.x == x and b.y == y:
-                return b
 
     def enemy_distance_map(self) -> List[List[float]]:
         if not self._enemy_distance_map:
