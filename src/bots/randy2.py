@@ -43,6 +43,11 @@ class Game(GameBase):
                     break
             entry.append(bot.current_dir)
             entries.append("-".join(entry))
+
+        # limit the amount of user-data to the allowed 128 characters
+        while entries and len(",".join(entries)) > 128:
+            entries.pop()
+
         return ",".join(entries)
 
     def step(self):
@@ -70,7 +75,7 @@ class Game(GameBase):
                         if not self.get_map(bot.x + dx, bot.y + dy):
                             action = bot.action("M", d)
                             bot.current_dir = d
-                        
+
                     if not action:
                         bot.current_dir = self.rand.choice(list(DIRECTIONS))
                         # self.log(f"{bot} blocked, new dir {bot.current_dir}")

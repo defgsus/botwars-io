@@ -244,7 +244,7 @@ class Simulator:
             ",".join(friends + enemies),
         ]
         if self.user_data[player]:
-            elements.append(self.user_data[player])
+            elements.append(self.user_data[player][:128])
 
         return "#".join(elements)
 
