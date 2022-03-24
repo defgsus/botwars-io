@@ -62,8 +62,19 @@ class Game(GameBase):
                 if not self.get_map(x, y):
                     action = bot.action("M", bot.current_dir)
                 else:
-                    bot.current_dir = self.rand.choice(list(DIRECTIONS))
-                    action = bot.action("D")
+                    new_dirs = [d for d in DIRECTIONS if bot.current_dir != d]
+                    self.rand.shuffle(new_dirs)
+                    while new_dirs and not action:
+                        d = new_dirs.pop()
+                        dx, dy = DIRECTIONS[d]
+                        if not self.get_map(bot.x + dx, bot.y + dy):
+                            action = bot.action("M", d)
+                            bot.current_dir = d
+                        
+                    if not action:
+                        bot.current_dir = self.rand.choice(list(DIRECTIONS))
+                        # self.log(f"{bot} blocked, new dir {bot.current_dir}")
+                        action = bot.action("D")
 
             self.add_action(action)
 

@@ -12,7 +12,7 @@ DIRECTIONS = {
 }
 
 SPAWNS = [
-    (4, 4), (4, 11), (11, 4), (11, 1)
+    (4, 4), (4, 11), (11, 4), (11, 11)
 ]
 
 
@@ -114,8 +114,9 @@ class GameBase:
         else:
             self.set_user_data("")
 
-    def log(self, *args):
-        print(*args, file=sys.stderr)
+    def log(self, *args, **kwargs):
+        kwargs["file"] = sys.stderr
+        print(*args, **kwargs)
 
     def step(self):
         raise NotImplementedError
@@ -173,9 +174,7 @@ class GameBase:
     def get_map(self, x: int, y: int) -> Optional[Union[bool, Bot]]:
         if not 1 <= x < self.WIDTH-1 or not 1 <= y < self.HEIGHT-1:
             return True
-        if x == 1 and (y == 1 or y == self.HEIGHT-2):
-            return True
-        if y == 1 and (x == 1 or x == self.WIDTH-2):
+        if (x == 1 or x == self.WIDTH-2) and (y == 1 or y == self.HEIGHT-2):
             return True
         for b in self.bots:
             if b.x == x and b.y == y:
