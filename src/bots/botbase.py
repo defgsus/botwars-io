@@ -1,7 +1,7 @@
 import sys
 import math
 import random
-from typing import Optional, Union, List, Tuple, Set, Type
+from typing import Optional, Union, List, Tuple, Set, Type, Any
 
 
 DIRECTIONS = {
@@ -9,6 +9,13 @@ DIRECTIONS = {
     "E": (1, 0),
     "S": (0, -1),
     "W": (-1, 0),
+}
+
+ACTIONS = {
+    "m": "move",
+    "d": "defend",
+    "a": "attack",
+    "s": "explode",
 }
 
 SPAWNS = [
@@ -121,6 +128,8 @@ class GameBase:
         kwargs["file"] = sys.stderr
         print(*args, **kwargs)
 
+    # ------------ interface for derived classes -------------
+
     def step(self):
         raise NotImplementedError
 
@@ -137,6 +146,22 @@ class GameBase:
         This method will be called with "" when no user-data is present.
         """
         pass
+
+    # ---- evolution interface ----
+
+    def get_genome(self) -> Any:
+        pass
+
+    def set_genome(self, genome: Any):
+        pass
+
+    def mutate(self, amount: float, probability: float):
+        """
+        Interface for evolution. Both values in range [0, 1]
+        """
+        pass
+
+    # -------------------------------------------------------
 
     def output(self):
         output = ",".join(str(a) for a in self.actions)

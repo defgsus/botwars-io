@@ -19,12 +19,16 @@ def parse_args() -> dict:
         "--many", type=int, nargs="?", default=0,
         help="Number of games to run and print results",
     )
+    parser.add_argument(
+        "-sf", "--spawn-frames", type=int, nargs="?", default=10,
+        help="Number of frames between spawn of new robots",
+    )
 
     return vars(parser.parse_args())
 
 
 def run_games(args) -> dict:
-    filenames, process_index, count = args
+    filenames, process_index, count, spawn_frames = args
 
     stats = {
         "wins": [0, 0],
@@ -37,7 +41,7 @@ def run_games(args) -> dict:
             filenames = list(reversed(filenames))
             A, B = B, A
 
-        sim = Simulator(*filenames)
+        sim = Simulator(*filenames, spawn_frame_interval=spawn_frames)
         for _ in range(100):
             sim.step()
 
@@ -76,6 +80,7 @@ def print_stats(stats: dict):
 def main(
         bots: List[str],
         many: int,
+        spawn_frames: int,
 ):
     filenames = []
     for org_fn in bots:
@@ -94,7 +99,7 @@ def main(
         print(f"{name}: {fn} ({'module' if m else 'file'})")
 
     if not many:
-        sim = Simulator(*filenames)
+        sim = Simulator(*filenames, spawn_frame_interval=spawn_frames)
         for _ in range(100):
             sim.step()
             sim.print()
@@ -104,7 +109,7 @@ def main(
 
     else:
         processes = [
-            (filenames, i, many // 8)
+            (filenames, i, many // 8, spawn_frames)
             for i in range(8)
         ]
         results = Pool(len(processes)).map(run_games, processes)

@@ -1,4 +1,5 @@
 import os
+import traceback
 import subprocess
 import importlib
 from pathlib import Path
@@ -53,9 +54,11 @@ class Simulator:
             bot2: Union[str, Path],
             width: int = 16,
             height: int = 16,
+            spawn_frame_interval: int = 10,
     ):
         self.width = width
         self.height = height
+        self.spawn_frame_interval = spawn_frame_interval
         self.bot_files = [Path(bot1), Path(bot2)]
         self.bot_modules = []
         for f in self.bot_files:
@@ -84,6 +87,7 @@ class Simulator:
             )
         }
         self.user_data = [""] * len(self.bot_files)
+        self.bot_genomes = [None] * len(self.bot_files)
 
         self.log_lines = []
         self.init_map()
@@ -113,7 +117,7 @@ class Simulator:
         self.log_lines = []
         self.log_lines.append(f"frame: {self.frame}")
 
-        if self.frame % 10 == 0:
+        if self.frame % self.spawn_frame_interval == 0:
             self.spawn()
             self.log_lines.append("spawned")
 
@@ -127,7 +131,7 @@ class Simulator:
         for i, (bot_file, bot_module) in enumerate(zip(self.bot_files, self.bot_modules)):
             input = self.game_state(i)
             if bot_module:
-                output = self.process_module(bot_module, input).strip()
+                output = self.process_module(bot_module, input, i).strip()
             else:
                 output = self.process_file(bot_file, input).strip()
 
@@ -326,10 +330,25 @@ class Simulator:
             process.wait()
             raise
 
-    def process_module(self, module, input: str) -> str:
-        game = module.Game(input)
-        game.step()
-        return game.output()
+    def process_module(self, module, input: str, player: int) -> str:
+        from .bots.botbase import GameBase
+        try:
+            game: GameBase = module.Game(input)
+
+            if self.bot_genomes[player] is not None:
+                game.set_genome(self.bot_genomes[player])
+
+            game.step()
+
+            if self.bot_genomes[player] is None:
+                self.bot_genomes[player] = game.get_genome()
+
+            return game.output()
+        except:
+            #import sys
+            #traceback.print_exc()
+            #traceback.print_exc(file=sys.stderr)
+            raise
 
     def print(self, file=None):
         for y in range(self.height):
