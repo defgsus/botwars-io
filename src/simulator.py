@@ -1,5 +1,6 @@
 import os
 import traceback
+import random
 import subprocess
 import importlib
 from pathlib import Path
@@ -13,6 +14,7 @@ class Bot:
         self.y = y
         self.energy = 100
         self.defend = False
+        self.attacked = False
         self.color = ""
 
     def __repr__(self):
@@ -55,10 +57,12 @@ class Simulator:
             width: int = 16,
             height: int = 16,
             spawn_frame_interval: int = 10,
+            random_probability: float = 0.,
     ):
         self.width = width
         self.height = height
         self.spawn_frame_interval = spawn_frame_interval
+        self.random_probability = random_probability
         self.bot_files = [Path(bot1), Path(bot2)]
         self.bot_modules = []
         for f in self.bot_files:
@@ -82,8 +86,9 @@ class Simulator:
             key: [0] * len(self.bot_files)
             for key in (
                 "defends", "useless_defends", "moves", "failed_moves",
-                "enemy_attacks", "friendly_attacks",
-                "enemy_kills", "friendly_kills",
+                "enemy_attacks", "self_attacks",
+                "enemy_kills", "self_kills",
+                "explosions",
             )
         }
         self.user_data = [""] * len(self.bot_files)
@@ -155,19 +160,21 @@ class Simulator:
                     x, y = (int(a) - 1 for a in args[0].split(":"))
                     bot = self.get_bot(x, y)
                     if bot and bot.player == i:
-                        bot_actions.append((
-                            bot,
-                            self.ACTIONS[args[1]],
-                            args[2:],
-                        ))
+                        if self.random_probability and random.random() < self.random_probability:
+                            bot_actions.append((bot, "move", [random.choice(list(self.DIRECTIONS))]))
+                        else:
+                            bot_actions.append((bot, self.ACTIONS[args[1]], args[2:]))
 
         # --- apply defend actions ---
 
-        for other in self.bots:
-            other.defend = False
+        for bot in self.bots:
+            bot.defend = False
+            bot.attacked = False
+
         for bot, command, args in bot_actions:
             if command == "defend":
                 bot.defend = True
+                self.stats["defends"][bot.player] += 1
 
         # --- apply move actions ---
 
@@ -194,6 +201,7 @@ class Simulator:
                 x, y = bot.x + dx, bot.y + dy
                 other = self.get_bot(x, y)
                 if other:
+                    other.attacked = True
                     is_friendly = other.player == bot.player
                     energy = self.FRIENDLY_ATTACK if is_friendly else self.ATTACK
                     if other.defend:
@@ -203,14 +211,15 @@ class Simulator:
                         f"{bot.color}{bot} attacked {other.color}{other}{self.COLOR_OFF}"
                     )
                     if is_friendly:
-                        self.stats["friendly_attacks"][bot.player] += 1
+                        self.stats["self_attacks"][bot.player] += 1
                         if other.energy <= 0:
-                            self.stats["friendly_kills"][bot.player] += 1
+                            self.stats["self_kills"][bot.player] += 1
                     else:
                         self.stats["enemy_attacks"][bot.player] += 1
                         if other.energy <= 0:
                             self.stats["enemy_kills"][bot.player] += 1
 
+            # TODO: bots always explode even if killed
             elif command == "explode":
                 for y in range(-1, 2):
                     for x in range(-1, 2):
@@ -222,9 +231,14 @@ class Simulator:
                                     if bot.player != other.player:
                                         self.stats["enemy_kills"][bot.player] += 1
                                     else:
-                                        self.stats["friendly_kills"][bot.player] += 1
+                                        self.stats["self_kills"][bot.player] += 1
                 bot.energy = 0
+                self.stats["explosions"][bot.player] += 1
                 self.log_lines.append(f"{self.COLOR_RED}{bot} exploded{self.COLOR_OFF}")
+
+        for b in self.bots:
+            if b.defend and not b.attacked:
+                self.stats["useless_defends"][b.player] += 1
 
         died_bots = [
             b for b in self.bots
@@ -239,11 +253,11 @@ class Simulator:
         ]
         self.log_lines.append("attacks (e/f): " + " ".join(
             f"{e}/{f}"
-            for e, f in zip(self.stats["enemy_attacks"], self.stats["friendly_attacks"])
+            for e, f in zip(self.stats["enemy_attacks"], self.stats["self_attacks"])
         ))
         self.log_lines.append("kills (e/f): " + " ".join(
             f"{e}/{f}"
-            for e, f in zip(self.stats["enemy_kills"], self.stats["friendly_kills"])
+            for e, f in zip(self.stats["enemy_kills"], self.stats["self_kills"])
         ))
         self.log_lines.append("bots: " + " ".join(str(n) for n in self.num_bots()))
         self.frame += 1

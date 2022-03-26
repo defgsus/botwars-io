@@ -23,12 +23,24 @@ def parse_args() -> dict:
         "-sf", "--spawn-frames", type=int, nargs="?", default=10,
         help="Number of frames between spawn of new robots",
     )
+    parser.add_argument(
+        "-d", "--delay", type=int, nargs="?", default=100,
+        help="Number of milliseconds to display each frame",
+    )
+    parser.add_argument(
+        "-r", "--random", type=float, nargs="?", default=0.,
+        help="Probability [0,1] of a bot making a random move instead of it's desired action",
+    )
 
     return vars(parser.parse_args())
 
 
-def run_games(args) -> dict:
-    filenames, process_index, count, spawn_frames = args
+def run_games(
+        filenames: List[Path],
+        process_index: int,
+        count: int,
+        sim_params: dict,
+) -> dict:
 
     stats = {
         "wins": [0, 0],
@@ -41,7 +53,7 @@ def run_games(args) -> dict:
             filenames = list(reversed(filenames))
             A, B = B, A
 
-        sim = Simulator(*filenames, spawn_frame_interval=spawn_frames)
+        sim = Simulator(*filenames, **sim_params)
         for _ in range(100):
             sim.step()
 
@@ -81,6 +93,8 @@ def main(
         bots: List[str],
         many: int,
         spawn_frames: int,
+        delay: int,
+        random: float,
 ):
     filenames = []
     for org_fn in bots:
@@ -94,25 +108,30 @@ def main(
             exit(1)
         filenames.append(fn)
 
-    bot_modules = Simulator(*filenames).bot_modules
+    sim_params = {
+        "spawn_frame_interval": spawn_frames,
+        "random_probability": random,
+    }
+
+    bot_modules = Simulator(*filenames, **sim_params).bot_modules
     for name, fn, m in zip(("a", "b"), filenames, bot_modules):
         print(f"{name}: {fn} ({'module' if m else 'file'})")
 
     if not many:
-        sim = Simulator(*filenames, spawn_frame_interval=spawn_frames)
+        sim = Simulator(*filenames, **sim_params)
         for _ in range(100):
             sim.step()
             sim.print()
-            time.sleep(.1)
+            time.sleep(delay / 1000)
 
         print_stats(sim.stats)
 
     else:
         processes = [
-            (filenames, i, many // 8, spawn_frames)
+            (filenames, i, many // 8, sim_params)
             for i in range(8)
         ]
-        results = Pool(len(processes)).map(run_games, processes)
+        results = Pool(len(processes)).starmap(run_games, processes)
 
         result_sum = dict()
         for r in results:

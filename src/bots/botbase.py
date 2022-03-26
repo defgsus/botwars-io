@@ -186,6 +186,7 @@ class GameBase:
             bots: Optional[List[Bot]],
             distance_to: Optional[Union[Tuple[int, int], Bot]] = None,
             energy: bool = False,
+            reverse: bool = False
     ) -> list:
         if bots is None:
             bots = self.bots.copy()
@@ -197,6 +198,9 @@ class GameBase:
             bots = sorted(bots, key=lambda b: abs(b.x - x) + abs(b.y - y))
         if energy:
             bots = sorted(bots, key=lambda b: b.energy)
+
+        if reverse:
+            bots = list(reversed(bots))
         return bots
 
     def get_map(self, x: int, y: int) -> Optional[Union[bool, Bot]]:
@@ -306,10 +310,9 @@ class GameBase:
         for pos in (
                 (x, y+1), (x+1, y), (x, y-1), (x-1, y)
         ):
-            if pos not in self.attacked_fields and pos not in self.moved_fields:
-                m = self.get_map(*pos)
-                if not m or m in ignore:
-                    yield pos, 1
+            m = self.get_map(*pos)
+            if not m or m in ignore:
+                yield pos, 1
 
     def test_explode(self, bot: Bot) -> Tuple[int, int]:
         energy_gain = -bot.energy
@@ -321,7 +324,7 @@ class GameBase:
                     if isinstance(other, Bot):
                         sign = -1 if other.friend else 1
                         energy_gain += 6 * sign
-                        if other.energy <= 8:
+                        if other.energy <= 6:
                             bot_gain += sign
 
         return bot_gain, energy_gain
