@@ -86,7 +86,7 @@ class Simulator:
             key: [0] * len(self.bot_files)
             for key in (
                 "defends", "useless_defends", "moves", "failed_moves",
-                "enemy_attacks", "self_attacks",
+                "enemy_attacks", "self_attacks", "missed_attacks",
                 "enemy_kills", "self_kills",
                 "explosions",
             )
@@ -218,6 +218,8 @@ class Simulator:
                         self.stats["enemy_attacks"][bot.player] += 1
                         if other.energy <= 0:
                             self.stats["enemy_kills"][bot.player] += 1
+                else:
+                    self.stats["missed_attacks"][bot.player] += 1
 
             # TODO: bots always explode even if killed
             elif command == "explode":

@@ -91,6 +91,7 @@ class GameBase:
     """
     WIDTH = 16
     HEIGHT = 16
+    MAX_DISTANCE = math.sqrt(WIDTH * WIDTH + HEIGHT * HEIGHT)
 
     def __init__(self, input: str):
         input_args = input.strip().split("#")
@@ -113,11 +114,21 @@ class GameBase:
             bot.pos: bot
             for bot in self.bots
         }
+        self.pos_to_friend_map = {
+            bot.pos: bot
+            for bot in self.friends
+        }
+        self.pos_to_enemy_map = {
+            bot.pos: bot
+            for bot in self.enemies
+        }
         self.rand = random.SystemRandom()
         self.actions: List[Action] = []
         self.attacked_fields = []
         self.moved_fields = []
+        self._deltas_by_distance = None
         self._enemy_distance_map = None
+        self._friend_distance_map = None
 
         if len(input_args) > 2:
             self.set_user_data(input_args[2])
@@ -127,6 +138,12 @@ class GameBase:
     def log(self, *args, **kwargs):
         kwargs["file"] = sys.stderr
         print(*args, **kwargs)
+
+    def progress(self) -> float:
+        """
+        Game (round) progress in range [0, 1]
+        """
+        return self.frame / self.max_frame
 
     # ------------ interface for derived classes -------------
 
@@ -212,6 +229,44 @@ class GameBase:
         if (x == 1 or x == self.WIDTH-2) and (y == 1 or y == self.HEIGHT-2):
             return True
 
+    @classmethod
+    def ulam_spiral(cls, n: int) -> Tuple[int, int]:
+        mm = int(0.5 * (math.sqrt(n) + 1.0))
+        kk = n - 4 * mm * (mm - 1)
+        if kk < 1 or kk > 8 * mm:
+            return 0, 0
+        if kk <= 2 * mm:
+            return mm, kk - mm
+        if kk <= 4 * mm:
+           return 3 * mm - kk, mm
+        if kk <= 6 * mm:
+            return -mm, 5 * mm - kk
+        return kk - 7 * mm, -mm
+
+    @property
+    def deltas_by_distance(self) -> List[Tuple[int, int]]:
+        if not self._deltas_by_distance:
+            self._deltas_by_distance = []
+            distances = dict()
+            for y in range(-self.HEIGHT // 2 - 1, self.HEIGHT // 2 + 1):
+                for x in range(-self.WIDTH // 2 - 1, self.WIDTH // 2 + 1):
+                    self._deltas_by_distance.append((x, y))
+                    distances[(x, y)] = math.sqrt(x*x + y*y)
+
+            self._deltas_by_distance.sort(key=lambda p: distances[p])
+
+        return self._deltas_by_distance
+
+    def get_next_free_pos(self, x: int, y: int, close_to: Optional[Tuple[int, int]] = None) -> Optional[Tuple[int, int]]:
+        #for i in range(self.WIDTH * self.HEIGHT):
+        #    ux, uy = self.ulam_spiral(i)
+        for ux, uy in self.deltas_by_distance:
+            ux += x
+            uy += y
+            if not self.get_map(ux, uy):
+                return ux, uy
+
+    @property
     def enemy_distance_map(self) -> List[List[float]]:
         if not self._enemy_distance_map:
             self._enemy_distance_map = []
@@ -226,6 +281,54 @@ class GameBase:
                         )
                 self._enemy_distance_map.append(row)
         return self._enemy_distance_map
+
+    @property
+    def friend_distance_map(self) -> List[List[float]]:
+        if not self._friend_distance_map:
+            self._friend_distance_map = []
+            for y in range(self.WIDTH):
+                row = []
+                for x in range(self.HEIGHT):
+                    if not self.friends:
+                        row.append(0.)
+                    else:
+                        row.append(
+                            min([distance(x, y, e.x, e.y) for e in self.friends])
+                        )
+                self._friend_distance_map.append(row)
+        return self._friend_distance_map
+
+    def get_move_positions(self, bot: Union[Tuple[int, int], Bot]) -> List[Tuple[int, int]]:
+        """
+        Return the absolute move-to positions of a bot or position,
+        """
+        return self.get_attack_positions(bot)
+
+    def get_attack_positions(self, bot: Union[Tuple[int, int], Bot]) -> List[Tuple[int, int]]:
+        """
+        Return the absolute attack positions of a bot or position,
+        """
+        if isinstance(bot, Bot):
+            x, y = bot.x, bot.y
+        else:
+            x, y = bot
+        positions = []
+        for dx, dy in DIRECTIONS.values():
+            positions.append((x + dx, y + dy))
+        return positions
+
+    def get_diagonal_positions(self, bot: Union[Tuple[int, int], Bot]) -> List[Tuple[int, int]]:
+        """
+        Return the absolute positions of adjacent corners of a bot or position,
+        """
+        if isinstance(bot, Bot):
+            x, y = bot.x, bot.y
+        else:
+            x, y = bot
+        positions = []
+        for dx, dy in ((-1, 1), (1, 1), (1, -1), (-1, -1)):
+            positions.append((x + dx, y + dy))
+        return positions
 
     def astar_search(
             self,

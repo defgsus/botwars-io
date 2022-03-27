@@ -12,7 +12,7 @@ class Game(GameBase):
             self.add_action(self.bot_flee(bot))
 
     def bot_flee(self, bot: Bot) -> Action:
-        dist_map = self.enemy_distance_map()
+        dist_map = self.enemy_distance_map
 
         best_dist, best_pos = None, None
         for y, row in enumerate(dist_map):
@@ -35,11 +35,10 @@ class Game(GameBase):
         return bot.action("D")
 
     def adjacent_nodes(self, x: int, y: int, ignore: Set[Bot] = (), enemy_distance_cost: bool = False):
-        max_dist = math.sqrt(self.WIDTH * self.WIDTH + self.HEIGHT * self.HEIGHT)
         for pos, cost in super().adjacent_nodes(x, y, ignore=ignore):
 
             if enemy_distance_cost:
-                inv_dist = max_dist - self.enemy_distance_map()[pos[1]][pos[0]]
+                inv_dist = self.MAX_DISTANCE - self.enemy_distance_map[pos[1]][pos[0]]
                 cost += inv_dist
 
             yield pos, cost

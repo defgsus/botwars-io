@@ -1,5 +1,6 @@
 private/
 pools/
+cache/
 .idea/
 *.iml
 env/
