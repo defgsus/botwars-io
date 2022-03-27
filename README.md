@@ -16,6 +16,16 @@ python match.py randy randy2
 [src/bots/](src/bots) directory. To make, e.g. a hundred matches, simply add
 the `--many 100` option.
 
+To export a bot for upload at botwars.io do
+
+```bash
+python export.py your_bot > export-to-botwars.py
+```
+
+If there is a line `from src.bots.botbase import *` in the file it will be replaced
+with the contents of [botbase.py](src/bots/botbase.py) and the bot is ready
+to rumble.
+
 
 ### internals
 

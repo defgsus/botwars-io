@@ -1,12 +1,7 @@
-import time
 import argparse
 from pathlib import Path
 import subprocess
-from typing import List
-
-from tqdm import tqdm
-
-from src.simulator import Simulator
+from typing import List, Optional
 
 
 def parse_args() -> dict:
@@ -36,9 +31,14 @@ def main(
     source = fn.read_text()
     if IMPORT_LINE in source:
         botbase_file = Path(__file__).resolve().parent / "src" / "bots" / "botbase.py"
+        commit_hash = get_commit_hash(botbase_file)
+        if commit_hash:
+            header = f"# GameBase from https://github.com/defgsus/botwars-io/blob/{commit_hash}/src/bots/botbase.py"
+        else:
+            header = ""
         source = "\n".join((
             source[:source.index(IMPORT_LINE)],
-            f"# GameBase from commit {get_commit_hash(botbase_file)}\n\n"
+            f"{header}\n\n"
             f"{botbase_file.read_text()}\n\n# ---- the actual bot ----\n\n",
             source[source.index(IMPORT_LINE) + len(IMPORT_LINE) + 1:],
         ))
@@ -46,11 +46,9 @@ def main(
     print(source)
 
 
-def get_commit_hash(*files: str) -> str:
+def get_commit_hash(*files: str) -> Optional[str]:
     """
     Return current commit hash
-
-    or sequence of zeros if no git or repo is available
     """
     args = ["git", "rev-list", "--branches", "--max-count=1"]
     if files:
@@ -58,7 +56,7 @@ def get_commit_hash(*files: str) -> str:
     try:
         return subprocess.check_output(args, cwd=Path(__file__).parent).strip().decode("utf-8")
     except (subprocess.CalledProcessError, UnicodeDecodeError):
-        return "0" * 40
+        pass
 
 
 if __name__ == "__main__":
