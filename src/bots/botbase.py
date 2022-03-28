@@ -1,7 +1,7 @@
 import sys
 import math
 import random
-from typing import Optional, Union, List, Tuple, Set, Type, Any
+from typing import Optional, Union, List, Tuple, Set, Type, Any, Generator, Iterable
 
 
 DIRECTIONS = {
@@ -25,6 +25,10 @@ SPAWNS = [
 
 def distance(x1: int, y1: int, x2: int, y2: int) -> float:
     return math.sqrt(math.pow(x1 - x2, 2) + math.pow(y1 - y2, 2))
+
+
+def manhatten_distance(x1: int, y1: int, x2: int, y2: int) -> int:
+    return abs(x1 - x2) + abs(y1 - y2)
 
 
 class Action:
