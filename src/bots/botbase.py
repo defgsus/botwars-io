@@ -1,7 +1,10 @@
 import sys
 import math
 import random
-from typing import Optional, Union, List, Tuple, Set, Type, Any, Generator, Iterable
+from typing import (
+    Optional, Union, List, Tuple, Set, Type, Any,
+    Generator, Iterable, Sequence,
+)
 
 
 DIRECTIONS = {
