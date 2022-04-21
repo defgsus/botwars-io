@@ -80,10 +80,16 @@ def run_games(
 
 def print_stats(stats: dict):
     for key, values in stats.items():
+        value_sum = max(1, sum(values))
         print(
             f"{key:20}: "
             + " ".join(
                 f"{Simulator.COLOR1 if i == 0 else Simulator.COLOR2}{v:7}{Simulator.COLOR_OFF}"
+                for i, v in enumerate(values)
+            )
+            + "  |  "
+            + " ".join(
+                f"{Simulator.COLOR1 if i == 0 else Simulator.COLOR2}{v/value_sum*100:6.2f}%{Simulator.COLOR_OFF}  "
                 for i, v in enumerate(values)
             )
         )

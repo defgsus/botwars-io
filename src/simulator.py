@@ -88,7 +88,7 @@ class Simulator:
                 "defends", "useless_defends", "moves", "failed_moves",
                 "enemy_attacks", "self_attacks", "missed_attacks",
                 "enemy_kills", "self_kills",
-                "explosions",
+                "explosions", "overspawned",
             )
         }
         self.user_data = [""] * len(self.bot_files)
@@ -309,6 +309,7 @@ class Simulator:
 
         for i, b in enumerate(self.bots):
             if b.x == x and b.y == y:
+                self.stats["overspawned"][b.player] += 1
                 self.bots.pop(i)
                 break
 

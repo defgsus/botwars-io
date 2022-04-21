@@ -3,7 +3,7 @@ import math
 import random
 from typing import (
     Optional, Union, List, Tuple, Set, Type, Any,
-    Generator, Iterable, Sequence,
+    Generator, Iterable, Sequence, Dict
 )
 
 
@@ -99,6 +99,7 @@ class GameBase:
     WIDTH = 16
     HEIGHT = 16
     MAX_DISTANCE = math.sqrt(WIDTH * WIDTH + HEIGHT * HEIGHT)
+    MAX_MANHATTEN_DISTANCE = WIDTH + HEIGHT
 
     def __init__(self, input: str):
         input_args = input.strip().split("#")
@@ -272,6 +273,10 @@ class GameBase:
             uy += y
             if not self.get_map(ux, uy):
                 return ux, uy
+
+    @property
+    def next_frame_is_spawn(self):
+        return self.frame % 10 == 9
 
     @property
     def enemy_distance_map(self) -> List[List[float]]:
